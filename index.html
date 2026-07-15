@@ -91,6 +91,7 @@
             border-bottom: 1px dotted #1a2a3a;
             padding-bottom: 12px;
             animation: fadeIn 0.3s ease;
+            clear: both;
         }
         @keyframes fadeIn {
             0% { opacity: 0; transform: translateY(6px); }
@@ -114,9 +115,39 @@
             line-height: 1.9;
             white-space: pre-wrap;
             word-break: break-word;
+            overflow: auto;
         }
         .entry .result .error {
             color: #9a5a5a;
+        }
+        /* 人物头像容器 */
+        .person-img-wrapper {
+            float: left;
+            margin-right: 18px;
+            margin-bottom: 8px;
+            width: 150px;
+            height: 190px;
+            background: #0a121c;
+            border-radius: 8px;
+            border: 1px solid #3a5a72;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .person-img-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .person-img-wrapper .fallback {
+            font-size: 52px;
+            color: #6a9bc0;
+            font-weight: bold;
+            font-family: 'Times New Roman', serif;
+            text-shadow: 0 0 20px rgba(106,155,192,0.3);
         }
 
         .search-bar {
@@ -182,6 +213,23 @@
             background: #1a2a3a;
             border-color: #5a7a92;
             color: #8aaac0;
+        }
+
+        /* ----- 免责声明 ----- */
+        .disclaimer {
+            flex-shrink: 0;
+            margin-top: 10px;
+            padding: 8px 0 2px;
+            border-top: 1px solid #1a2a3a;
+            font-size: 11px;
+            color: #4a6a82;
+            text-align: center;
+            letter-spacing: 0.3px;
+            line-height: 1.6;
+            opacity: 0.8;
+        }
+        .disclaimer span {
+            color: #5a7a92;
         }
 
         .modal-overlay {
@@ -310,6 +358,9 @@
             .search-bar { flex-wrap: wrap; }
             .search-bar input { min-width: 80px; }
             .modal { padding: 18px; }
+            .person-img-wrapper { width: 100px; height: 130px; margin-right: 12px; }
+            .person-img-wrapper .fallback { font-size: 36px; }
+            .disclaimer { font-size: 10px; }
         }
     </style>
 </head>
@@ -324,14 +375,18 @@
         </div>
     </div>
 
-    <div class="history" id="history">
-        <!-- 初始内容由 JavaScript 动态生成，见下方脚本 -->
-    </div>
+    <div class="history" id="history"></div>
 
     <div class="search-bar">
         <label for="searchInput">🔍 检索</label>
         <input type="text" id="searchInput" placeholder="输入关键词…" autocomplete="off">
         <button id="searchBtn">查询</button>
+    </div>
+
+    <!-- ===== 免责声明 ===== -->
+    <div class="disclaimer">
+        <span>⚠️ 本游戏所有内容（包括但不限于人物、事件、地点、组织、图像等）均为虚构创作，</span><br>
+        <span>如有雷同，纯属巧合。请勿映射现实。</span>
     </div>
 </div>
 
@@ -350,7 +405,7 @@
 
 <script>
     // ==================================================================
-    //  数据库（同前，略）
+    //  1. 数据库（全部文本）
     // ==================================================================
     const DB = {
         "林悦": `林悦，女，29岁，自由画家，毕业于中央美术学院。曾在晨曦画廊举办过三次个展，擅长油画与综合材料。她的作品风格抽象，带有冷峻的城市感。据其姐林晴描述，林悦性格内向，但执着于艺术细节。失踪前两个月，她开始频繁前往夜莺酒吧，并多次与画廊老板陈默发生争执。她的个人电脑中存有大量艺术市场资料，包括一些国际拍卖行的记录。`,
@@ -401,7 +456,20 @@
     };
 
     // ==================================================================
-    //  解密题目（12题，聚焦核心犯罪信息）
+    //  2. 人物图片映射（文件名请与 images/ 目录下的实际文件名一致）
+    //     如果图片不存在，将自动显示人物姓氏首字母作为占位
+    // ==================================================================
+    const IMG_MAP = {
+        "林悦": "linyue.png",
+        "陈默": "chenmo.png",
+        "苏瑶": "suyao.png",
+        "李警官": "lijinguan.png",
+        "赵鹏": "zhaopeng.png",
+        "阿海": "ahai.png"
+    };
+
+    // ==================================================================
+    //  3. 解密测试题目（12题，聚焦核心犯罪信息）
     // ==================================================================
     const QUIZ = [
         { q: "林悦最后一条短信的接收者是谁？", options: ["林晴", "苏瑶", "李警官", "陈默"], correct: 1 },
@@ -419,25 +487,7 @@
     ];
 
     // ==================================================================
-    //  游戏状态
-    // ==================================================================
-    let historyEntries = [];
-    let gameCompleted = false;
-
-    // DOM
-    const historyDiv = document.getElementById('history');
-    const searchInput = document.getElementById('searchInput');
-    const searchBtn = document.getElementById('searchBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const decryptBtn = document.getElementById('decryptBtn');
-    const modalOverlay = document.getElementById('modalOverlay');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const submitQuizBtn = document.getElementById('submitQuizBtn');
-    const questionsContainer = document.getElementById('questionsContainer');
-    const modalFeedback = document.getElementById('modalFeedback');
-
-    // ==================================================================
-    //  引言文本（以叙事方式指向“林悦”）
+    //  4. 引言文本
     // ==================================================================
     const INTRODUCTION = `
         七月，城市被连绵的雨水浸透。一个寻常的周三，一封没有署名的邮件出现在你的私人信箱——附件只有一个文件夹，里面是零散的警方档案、酒吧监控截图、以及几页手写日记的翻拍照片。
@@ -453,11 +503,29 @@
     `;
 
     // ==================================================================
-    //  渲染函数
+    //  5. 游戏状态
+    // ==================================================================
+    let historyEntries = [];
+    let gameCompleted = false;
+
+    // DOM 元素
+    const historyDiv = document.getElementById('history');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const decryptBtn = document.getElementById('decryptBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const submitQuizBtn = document.getElementById('submitQuizBtn');
+    const questionsContainer = document.getElementById('questionsContainer');
+    const modalFeedback = document.getElementById('modalFeedback');
+
+    // ==================================================================
+    //  6. 渲染函数
     // ==================================================================
     function renderHistory() {
         let html = '';
-        // 始终显示引言（作为第一条记录）
+        // 引言（始终显示）
         html += `
             <div class="entry">
                 <div class="query">系统</div>
@@ -466,13 +534,26 @@
                 </div>
             </div>
         `;
-        // 后续搜索记录
+        // 所有搜索记录
         for (let e of historyEntries) {
             const errorClass = e.isError ? 'error' : '';
+            let imgHtml = '';
+            if (e.img) {
+                // 构建图片容器，如果图片加载失败则显示首字母
+                const initial = e.query.charAt(0);
+                imgHtml = `
+                    <div class="person-img-wrapper">
+                        <img src="images/${e.img}" alt="${e.query}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'fallback\\'>${initial}</span>'">
+                    </div>
+                `;
+            }
             html += `
                 <div class="entry">
                     <div class="query">${e.query}</div>
-                    <div class="result ${errorClass}">${e.result}</div>
+                    <div class="result ${errorClass}">
+                        ${imgHtml}
+                        ${e.result}
+                    </div>
                 </div>
             `;
         }
@@ -480,13 +561,13 @@
         historyDiv.scrollTop = historyDiv.scrollHeight;
     }
 
-    function addHistory(query, result, isError = false) {
-        historyEntries.push({ query, result, isError });
+    function addHistory(query, result, isError = false, img = null) {
+        historyEntries.push({ query, result, isError, img });
         renderHistory();
     }
 
     // ==================================================================
-    //  搜索逻辑
+    //  7. 搜索逻辑
     // ==================================================================
     function performSearch(query) {
         if (gameCompleted) return;
@@ -495,8 +576,10 @@
 
         const lower = trimmed.toLowerCase();
         let resultText = null;
+        let matchedKey = null;
         for (let key in DB) {
             if (key.toLowerCase() === lower) {
+                matchedKey = key;
                 resultText = DB[key];
                 break;
             }
@@ -504,14 +587,15 @@
         if (resultText === null) {
             addHistory(trimmed, '未找到相关信息。', true);
         } else {
-            addHistory(trimmed, resultText, false);
+            const img = IMG_MAP[matchedKey] || null;
+            addHistory(trimmed, resultText, false, img);
         }
         searchInput.value = '';
         searchInput.focus();
     }
 
     // ==================================================================
-    //  解密测试
+    //  8. 解密测试
     // ==================================================================
     function renderQuiz() {
         let html = '';
@@ -589,7 +673,7 @@
     }
 
     // ==================================================================
-    //  重置
+    //  9. 重置
     // ==================================================================
     function resetGame() {
         if (confirm('重置将清空所有搜索记录，确定吗？')) {
@@ -607,7 +691,7 @@
     }
 
     // ==================================================================
-    //  事件绑定
+    //  10. 事件绑定
     // ==================================================================
     searchBtn.addEventListener('click', function() {
         performSearch(searchInput.value);
@@ -627,7 +711,7 @@
     });
 
     window.addEventListener('load', function() {
-        renderHistory();   // 显示引言
+        renderHistory();
         searchInput.focus();
     });
 </script>
