@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卷宗 · 红月</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #080c12;
+            color: #bcc8d6;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .terminal {
+            max-width: 1100px;
+            width: 100%;
+            background: #0e1722;
+            border: 1px solid #253544;
+            border-radius: 18px;
+            padding: 22px 26px 18px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+            height: 92vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1a2a3a;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: normal;
+            letter-spacing: 2px;
+            color: #c8d8e8;
+        }
+        .header .actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .header .actions button {
+            background: #1a2a3a;
+            border: 1px solid #2a4055;
+            color: #b0c8dd;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .header .actions button:hover {
+            background: #2a4055;
+            border-color: #5a7a92;
+            color: #f0f8ff;
+        }
+        .header .actions button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .history {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 6px;
+            margin-bottom: 14px;
+            scroll-behavior: smooth;
+        }
+        .history::-webkit-scrollbar { width: 5px; }
+        .history::-webkit-scrollbar-track { background: #0e1722; }
+        .history::-webkit-scrollbar-thumb { background: #2a4055; border-radius: 6px; }
+
+        .entry {
+            margin-bottom: 16px;
+            border-bottom: 1px dotted #1a2a3a;
+            padding-bottom: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .entry .query {
+            color: #6a9bc0;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .entry .query::before {
+            content: "> ";
+            color: #7a6a5a;
+        }
+        .entry .result {
+            margin-top: 4px;
+            padding-left: 14px;
+            border-left: 2px solid #1f3140;
+            color: #c8d4e0;
+            font-size: 14.5px;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .entry .result .error {
+            color: #9a5a5a;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-top: 1px solid #1a2a3a;
+            padding-top: 14px;
+            flex-shrink: 0;
+            background: #0e1722;
+        }
+        .search-bar label {
+            font-size: 13px;
+            color: #6a8aa0;
+            letter-spacing: 1px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            background: #0a121c;
+            border: 1px solid #253544;
+            border-radius: 6px;
+            color: #e0ecf5;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            transition: 0.2s;
+            min-width: 120px;
+        }
+        .search-bar input:focus {
+            outline: none;
+            border-color: #5a7a92;
+            box-shadow: 0 0 12px rgba(40,80,120,0.3);
+        }
+        .search-bar button {
+            background: #1a2a3a;
+            border: 1px solid #2a4055;
+            color: #c0d0e0;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .search-bar button:hover {
+            background: #2a4055;
+            border-color: #5a7a92;
+            color: #f0f8ff;
+        }
+        .reset-btn {
+            background: transparent;
+            border: 1px solid #2a3a4a;
+            color: #4a6a82;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            transition: 0.2s;
+        }
+        .reset-btn:hover {
+            background: #1a2a3a;
+            border-color: #5a7a92;
+            color: #8aaac0;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: #0e1722;
+            border: 2px solid #3a5a72;
+            border-radius: 20px;
+            max-width: 760px;
+            width: 100%;
+            max-height: 90vh;
+            padding: 30px 28px 24px;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+        .modal h2 {
+            font-weight: normal;
+            letter-spacing: 2px;
+            color: #d0dcec;
+            border-bottom: 1px solid #1f3140;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+        }
+        .question {
+            margin-bottom: 22px;
+            background: #0a121c;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border-left: 3px solid #4a6a82;
+        }
+        .question p {
+            font-size: 15px;
+            margin-bottom: 8px;
+            color: #d8e4f0;
+        }
+        .question label {
+            display: block;
+            margin: 4px 0;
+            font-size: 14px;
+            color: #b0c0d0;
+            cursor: pointer;
+        }
+        .question label input {
+            margin-right: 8px;
+            accent-color: #6a9bc0;
+            transform: scale(1.0);
+        }
+        .question label:hover {
+            color: #e0ecf5;
+        }
+        .modal .actions {
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+            margin-top: 18px;
+            border-top: 1px solid #1a2a3a;
+            padding-top: 18px;
+        }
+        .modal .actions button {
+            background: #1a2a3a;
+            border: 1px solid #2a4055;
+            color: #c0d0e0;
+            padding: 10px 28px;
+            border-radius: 30px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.2s;
+        }
+        .modal .actions button:hover {
+            background: #2a4055;
+            border-color: #5a7a92;
+            color: #fff;
+        }
+        .modal .actions button.primary {
+            background: #2a4055;
+            border-color: #5a7a92;
+        }
+        .modal .actions button.primary:hover {
+            background: #3a5a72;
+        }
+        .modal .feedback {
+            margin-top: 12px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 15px;
+        }
+        .modal .feedback.success {
+            background: #162a22;
+            color: #8aba8a;
+            border: 1px solid #3a7a5a;
+        }
+        .modal .feedback.error {
+            background: #2a1818;
+            color: #c08080;
+            border: 1px solid #7a4a4a;
+        }
+        .modal .feedback.complete {
+            background: #1a2a3a;
+            color: #f0d8b0;
+            border: 2px solid #b8865b;
+            font-size: 18px;
+            padding: 18px;
+        }
+        .modal::-webkit-scrollbar { width: 5px; }
+        .modal::-webkit-scrollbar-track { background: #0a121c; }
+        .modal::-webkit-scrollbar-thumb { background: #2a4055; border-radius: 6px; }
+
+        @media (max-width: 700px) {
+            .terminal { padding: 14px; height: 95vh; }
+            .search-bar { flex-wrap: wrap; }
+            .search-bar input { min-width: 80px; }
+            .modal { padding: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <div class="header">
+        <h1>📂 案件卷宗 · 归档号 0713</h1>
+        <div class="actions">
+            <button id="decryptBtn" title="当你认为已掌握足够信息时，进入解密测试">🔐 解密测试</button>
+            <button class="reset-btn" id="resetBtn">重置</button>
+        </div>
+    </div>
+
+    <div class="history" id="history">
+        <!-- 初始内容由 JavaScript 动态生成，见下方脚本 -->
+    </div>
+
+    <div class="search-bar">
+        <label for="searchInput">🔍 检索</label>
+        <input type="text" id="searchInput" placeholder="输入关键词…" autocomplete="off">
+        <button id="searchBtn">查询</button>
+    </div>
+</div>
+
+<!-- ======== 解密模态框 ======== -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+        <h2>🔐 解密测试</h2>
+        <div id="questionsContainer"></div>
+        <div id="modalFeedback" class="feedback"></div>
+        <div class="actions">
+            <button id="closeModalBtn">关闭</button>
+            <button id="submitQuizBtn" class="primary">提交答案</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================================================================
+    //  数据库（同前，略）
+    // ==================================================================
+    const DB = {
+        "林悦": `林悦，女，29岁，自由画家，毕业于中央美术学院。曾在晨曦画廊举办过三次个展，擅长油画与综合材料。她的作品风格抽象，带有冷峻的城市感。据其姐林晴描述，林悦性格内向，但执着于艺术细节。失踪前两个月，她开始频繁前往夜莺酒吧，并多次与画廊老板陈默发生争执。她的个人电脑中存有大量艺术市场资料，包括一些国际拍卖行的记录。`,
+        "林晴": `林晴，女，34岁，市第一中学历史教师，林悦的胞姐。她于7月8日报案，称妹妹已失联超过72小时。林晴提供了一条关键信息：林悦曾提到画廊里有些画“感觉不对”，但从未具体说明。她还提到林悦近期心情压抑，曾说过“有人盯着我”。`,
+        "陈默": `陈默，男，48岁，晨曦画廊创始人兼艺术总监，在本地艺术圈地位显赫。他早年从事古董生意，后转向当代艺术。名下登记有住宅3处、商铺2处，其中一处为城郊的独立农舍。警方注意到他与多名艺术掮客往来密切，且其银行账户有大额资金进出，但无正当解释。夜莺酒吧酒保指认其曾与林悦发生激烈争吵，并遗落个人笔记本。`,
+        "苏瑶": `苏瑶，女，30岁，《都市快报》文化版记者，林悦的大学室友兼密友。她是林悦最后一条短信的接收者，短信内容为：“地下室有东西，去找李”。苏瑶称，林悦曾向她诉苦，说画廊里出现了赝品，但陈默不承认。苏瑶近期多次向警方提供信息，并私下与李警官会面。`,
+        "李警官": `李警官（全名未公开），男，45岁，市公安局刑侦支队探员，专长于艺术品犯罪。他于6月中旬开始关注红月组织，并收集了若干线索，但上级以“证据不足”为由暂停调查。李警官曾独自前往东区码头探查，并在城郊小屋附近出现过。据内部消息，他手中有一份与红月相关的匿名举报信副本。`,
+        "赵鹏": `赵鹏，男，32岁，前古玩市场中介，有盗窃前科（已服刑）。他曾与林悦交往约一年，半年前分手。据悉，他后来为红月组织做外围联络工作，外号“乌鸦”。7月10日，有人目击他在城郊小屋附近出现，但警方未能联系上他。其社交媒体账号已注销。`,
+        "乌鸦": `（参见赵鹏）—— 一份线人报告指出，“乌鸦”近期表现异常，曾向他人透露“老板”要求他处理掉某个“麻烦”，但他似乎犹豫不决。`,
+        "老板": `红月组织内部对最高指挥者的称呼，无具体姓名。根据一段被截获的通讯记录，“老板”指示“事务由码头仓库统一调度”。有传言称，“老板”与陈默为同一人，但尚未证实。`,
+        "阿海": `阿海，男，27岁，夜莺酒吧酒保。他向警方提供了林悦与陈默争吵的细节，并主动上交了陈默遗落的笔记本。阿海表示，陈默有时会独自坐在吧台，偶尔会有陌生人找他，但从未见过这些人喝东西。`,
+        "王曼": `王曼，女，46岁，陈默的妻子，登记为家庭主妇。她名下有一家古董店，但实际经营者不明。警方查询其户籍信息，发现王曼与陈默分居多时，但仍未离婚。`,
+        "刘秘书": `刘秘书（全名刘伟），男，34岁，晨曦画廊行政助理，负责展览协调。他证实林悦曾多次到访画廊办公室，并称林悦曾询问过“地下室钥匙”的事。他对警方表示，林悦似乎对画廊的仓储空间格外感兴趣。`,
+        "张老板": `张老板，男，55岁，经营一家字画装裱店，与陈默有长期业务往来。据张老板的妻子透露，陈默有时会委托他处理一些“特殊订单”，但从不说明细节。`,
+        "码头工人老李": `老李，男，52岁，东区码头装卸工，长期在B-7仓库附近工作。他向调查人员反映，近几个月夜间常有小型货船靠泊，搬运物品都用黑色塑料袋封装，且人员均佩戴口罩。`,
+        "匿名举报人": `6月20日寄至警局的匿名信，签署名为“一位关心真相的市民”，信中指控“红月组织利用画廊进行非法活动”，并提及“码头仓库”和“账本”等关键字。警方曾尝试追踪寄信IP，但未果。`,
+        "夜莺酒吧": `位于城东梧桐街13号，是一家具有文艺气息的独立酒吧，吧台陈设为深色木料，灯光昏暗。林悦是这里的熟客，常坐在靠窗位置。酒保阿海记忆力较好，对常客印象深刻。酒吧监控设备较为老旧，录像仅保留一个月。`,
+        "晨曦画廊": `位于市中心艺术区，占地面积约400平米，一层为展厅，二层为办公区，地下室用于仓储。警方第一次搜查时，地下室门被锁闭，陈默声称“堆放旧画框和杂物”。建筑图纸显示地下室有一道未标注的暗门，通向外部通道。`,
+        "画廊地下室": `晨曦画廊地下隔层，面积约50平米，入口在办公室书柜后方。内部堆放了一些旧画框和石膏像，但地面有明显拖拽痕迹。暗门后方是一条狭窄的隧道，宽度仅容一人通过。`,
+        "废弃工厂": `城西原第二纺织厂，已停产五年，产权归属不明。周边居民反映，近期深夜常有车辆出入，但未听见机器噪音。警方于7月14日巡查时发现新鲜轮胎印，并在厂房角落找到一截烟蒂（未提取到DNA）。`,
+        "码头仓库": `东区三号码头附属仓库B-7，隶属于一家注册在境外的空壳货运公司。仓库外墙有铁质爬梯，屋顶有通风口。据码头工人老李所述，该仓库常在夜间有活动，但白天无人值班。`,
+        "城郊小屋": `位于北郊落霞镇，靠近一片树林，是陈默名下的一处独立农舍。屋内有两室一厅，家具齐全，但明显被匆忙清理过。现场遗留了一根长约15厘米的棕色头发和一枚银色发夹，发夹内刻有“LY”字样。`,
+        "下水道": `城市东区排水系统，可通往多个街区。晨曦画廊地下室暗门连接至其中一段支线，该管线沿河岸方向延伸，最终到达码头区域。市政部门近年未对该段进行维护。`,
+        "东区码头": `东区沿江区域，设有多个泊位和仓库。三号码头较为偏僻，周围无居民楼，监控覆盖范围有限。港口调度记录显示，6月至7月间有多艘注册于外港的小型货船在夜间靠泊B-7仓库。`,
+        "古董店": `王曼名下的“古韵轩”，位于老城区，主要经营陶瓷、字画等杂项。店员称老板极少露面，通常由一名姓周的管理员打理。`,
+        "咖啡馆": `林悦常去的一家名为“流年”的咖啡馆，位于画廊对面。店主透露，林悦喜欢在午后独自前来，边喝咖啡边查阅画册。`,
+        "笔记本": `黑色皮质封面的笔记本，尺寸约A5，内页有陈默的亲笔签名。内容主要为日期和数字记录，例如：“6/12 - 120W”、“7/3 - 5件”、“7/8 - 运输”等，并出现缩写“SZ”、“JD”、“HK”等。警方未对其笔迹进行鉴定。`,
+        "手机": `林悦的iPhone 12，已于7月10日被定位到城郊区域，但手机本身下落不明。最后一条短信发送于7月5日21:47，收件人为苏瑶，内容为“地下室有东西，去找李”。此后手机信号消失。`,
+        "账本": `红月组织内部交易记录册，据称记录了每笔交易的日期、种类、数量、金额及对接人员。有一份匿名线索指出，账本藏在码头仓库地面钢板下方的暗格内，位置靠近北墙。`,
+        "暗格": `码头仓库B-7内一处隐蔽隔层，位于地面钢板下方，钢板用螺栓固定，但螺栓有磨损痕迹。该隔层在原始建筑图纸中未标注。`,
+        "名画": `晨曦画廊近年展出的部分作品被林悦怀疑为赝品。她曾对比过真品照片，发现笔触和颜料层存在差异。画廊方面否认此说法，并拒绝提供藏品来源证明。`,
+        "隧道": `连接画廊地下室与下水道系统的通道，长约180米，内部干燥，地面有拖拽印痕。隧道中段发现一块印有“红月”字样的名片（疑似印刷品）。`,
+        "红月": `一个在艺术品圈内被隐秘提及的名称，疑似为地下组织。没有正式注册信息，但多起艺术品失窃案及人口失踪案中均出现该代号。`,
+        "交易": `红月组织内部对资金和物品流转的统称，通常指将贵重物品或“特殊货物”从国内转运至境外。交易多发生在深夜，地点不固定。`,
+        "举报信": `6月20日寄至警局的匿名打印信件，内容指控“红月组织利用画廊进行非法活动，涉及走私和人口转移”，并提到“码头仓库”和“账本”两个关键词。信件无签名，信封邮戳为市中心邮局。`,
+        "人口贩卖": `一份来自国际刑警组织的通报（未公开）提到，近年有数起年轻女性失踪案可能与艺术品走私网络有关，但未直接点名红月。`,
+        "走私": `指将艺术品或其他物品非法运出国境。海关近半年记录中无与画廊直接相关的申报，但有一批画作以“个人物品”名义申报出境，收货方为某离岸公司。`,
+        "发夹": `城郊小屋发现的银色发夹，内侧刻有“LY”字母，疑似林悦的私人物品。其姐林晴确认该发夹为林悦所有，并称是她去年送给妹妹的生日礼物。`,
+        "烟蒂": `废弃工厂发现的烟蒂，品牌为“玉溪”，与已知的陈默常吸品牌相同。但未提取到有效DNA，无法证实关联。`,
+        "钥匙": `据刘秘书回忆，林悦曾向他问起“地下室钥匙”的事，但刘秘书表示钥匙只有陈默本人持有。之后林悦未再提及。`,
+        "U盘": `苏瑶曾向警方提供过一个U盘，据称是林悦生前交给她的备份资料，但U盘内容已被加密，警方未破解成功。`,
+        "账本复印件": `李警官在私下调查中获取了部分账本复印件，但来源及真实性待考。复印件上可见数字和缩写，与笔记本内容对应。`,
+        "艺术市场": `近年国内艺术品市场热度上升，尤其是当代青年画家作品价格波动较大。`,
+        "国际刑警": `国际刑警组织曾对跨国有组织艺术品犯罪有过通报，但具体细节未公开。`,
+        "银行流水": `陈默的银行账户在近半年内有多笔大额转账，单笔均在50万元以上，接收方多为海外账户。`,
+        "拍卖记录": `林悦的电脑中存有几家国际拍卖公司的近三年成交记录，其中一些作品与画廊展览的作品名称重合。`,
+        "监控录像": `夜莺酒吧及周边街道的监控录像因设备老旧，无法清晰辨认人物面部特征。`
+    };
+
+    // ==================================================================
+    //  解密题目（12题，聚焦核心犯罪信息）
+    // ==================================================================
+    const QUIZ = [
+        { q: "林悦最后一条短信的接收者是谁？", options: ["林晴", "苏瑶", "李警官", "陈默"], correct: 1 },
+        { q: "陈默在夜莺酒吧遗落的关键物品是什么？", options: ["手机", "钱包", "笔记本", "钥匙"], correct: 2 },
+        { q: "画廊地下室通过什么系统连接至外部？", options: ["通风管道", "下水道", "废弃工厂", "码头仓库"], correct: 1 },
+        { q: "赵鹏在红月组织中的代号是什么？", options: ["猎鹰", "乌鸦", "影子", "老板"], correct: 1 },
+        { q: "红月组织的实际最高指挥者是谁？", options: ["赵鹏", "李警官", "陈默", "苏瑶"], correct: 2 },
+        { q: "红月组织存放核心账本的精确位置是？", options: ["画廊地下室", "废弃工厂", "码头仓库暗格", "城郊小屋"], correct: 2 },
+        { q: "林悦在画廊中发现了什么异常？", options: ["画框损坏", "画作是赝品", "颜料过期", "署名错误"], correct: 1 },
+        { q: "赵鹏将林悦藏匿在何处？", options: ["废弃工厂", "码头仓库", "城郊小屋", "夜莺酒吧"], correct: 2 },
+        { q: "李警官在秘密调查中获取了哪种形式的证据？", options: ["账本原件", "账本复印件", "笔记本", "手机"], correct: 1 },
+        { q: "红月组织进行大宗非法交易的主要地点是？", options: ["晨曦画廊", "废弃工厂", "码头仓库", "城郊小屋"], correct: 2 },
+        { q: "匿名举报信指控红月组织从事以下哪项非法活动？", options: ["艺术品走私", "毒品走私", "武器贩卖", "假币制造"], correct: 0 },
+        { q: "林悦失踪前频繁出入的酒吧是？", options: ["蓝调酒吧", "夜莺酒吧", "红磨坊", "爵士屋"], correct: 1 }
+    ];
+
+    // ==================================================================
+    //  游戏状态
+    // ==================================================================
+    let historyEntries = [];
+    let gameCompleted = false;
+
+    // DOM
+    const historyDiv = document.getElementById('history');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const decryptBtn = document.getElementById('decryptBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const submitQuizBtn = document.getElementById('submitQuizBtn');
+    const questionsContainer = document.getElementById('questionsContainer');
+    const modalFeedback = document.getElementById('modalFeedback');
+
+    // ==================================================================
+    //  引言文本（以叙事方式指向“林悦”）
+    // ==================================================================
+    const INTRODUCTION = `
+        七月，城市被连绵的雨水浸透。一个寻常的周三，一封没有署名的邮件出现在你的私人信箱——附件只有一个文件夹，里面是零散的警方档案、酒吧监控截图、以及几页手写日记的翻拍照片。
+
+        发件人没有留下任何身份信息，但邮件正文只有一句话：
+        “有些画挂错了墙，有些人走进了不该走的路。”
+
+        你浏览着那些档案，一个名字反复出现——在报案记录里，在酒保的证词中，在日记的页码边缘，在手机信号的最后定位点。
+
+        那是案件最初的碎片，也是此刻唯一清晰的人名。
+
+        林悦。
+    `;
+
+    // ==================================================================
+    //  渲染函数
+    // ==================================================================
+    function renderHistory() {
+        let html = '';
+        // 始终显示引言（作为第一条记录）
+        html += `
+            <div class="entry">
+                <div class="query">系统</div>
+                <div class="result" style="color:#c8d4e0; white-space:pre-wrap; line-height:2;">
+                    ${INTRODUCTION}
+                </div>
+            </div>
+        `;
+        // 后续搜索记录
+        for (let e of historyEntries) {
+            const errorClass = e.isError ? 'error' : '';
+            html += `
+                <div class="entry">
+                    <div class="query">${e.query}</div>
+                    <div class="result ${errorClass}">${e.result}</div>
+                </div>
+            `;
+        }
+        historyDiv.innerHTML = html;
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+    }
+
+    function addHistory(query, result, isError = false) {
+        historyEntries.push({ query, result, isError });
+        renderHistory();
+    }
+
+    // ==================================================================
+    //  搜索逻辑
+    // ==================================================================
+    function performSearch(query) {
+        if (gameCompleted) return;
+        const trimmed = query.trim();
+        if (trimmed === '') return;
+
+        const lower = trimmed.toLowerCase();
+        let resultText = null;
+        for (let key in DB) {
+            if (key.toLowerCase() === lower) {
+                resultText = DB[key];
+                break;
+            }
+        }
+        if (resultText === null) {
+            addHistory(trimmed, '未找到相关信息。', true);
+        } else {
+            addHistory(trimmed, resultText, false);
+        }
+        searchInput.value = '';
+        searchInput.focus();
+    }
+
+    // ==================================================================
+    //  解密测试
+    // ==================================================================
+    function renderQuiz() {
+        let html = '';
+        QUIZ.forEach((item, idx) => {
+            html += `<div class="question" data-q="${idx}">
+                        <p><strong>${idx+1}.</strong> ${item.q}</p>`;
+            item.options.forEach((opt, optIdx) => {
+                html += `<label>
+                            <input type="radio" name="q${idx}" value="${optIdx}"> ${opt}
+                        </label>`;
+            });
+            html += `</div>`;
+        });
+        questionsContainer.innerHTML = html;
+    }
+
+    function getAnswers() {
+        const answers = [];
+        QUIZ.forEach((_, idx) => {
+            const radios = document.querySelectorAll(`input[name="q${idx}"]`);
+            let selected = -1;
+            radios.forEach(r => {
+                if (r.checked) selected = parseInt(r.value);
+            });
+            answers.push(selected);
+        });
+        return answers;
+    }
+
+    function submitQuiz() {
+        if (gameCompleted) {
+            modalFeedback.className = 'feedback complete';
+            modalFeedback.textContent = '🏆 你已经通关，无需重复测试。';
+            return;
+        }
+        const answers = getAnswers();
+        if (answers.some(a => a === -1)) {
+            modalFeedback.className = 'feedback error';
+            modalFeedback.textContent = '请回答所有题目。';
+            return;
+        }
+        let correctCount = 0;
+        for (let i = 0; i < QUIZ.length; i++) {
+            if (answers[i] === QUIZ[i].correct) correctCount++;
+        }
+        if (correctCount === QUIZ.length) {
+            gameCompleted = true;
+            modalFeedback.className = 'feedback complete';
+            modalFeedback.innerHTML = '🎉 全部正确！你已彻底破解此案。<br>所有证据链闭合，陈默及其犯罪网络被成功起诉。';
+            searchInput.disabled = true;
+            searchBtn.disabled = true;
+            decryptBtn.disabled = true;
+            addHistory('系统', '解密测试通过，案件终结。', false);
+        } else {
+            modalFeedback.className = 'feedback error';
+            modalFeedback.textContent = `答对了 ${correctCount}/${QUIZ.length} 题，再仔细查阅资料，找出正确信息。`;
+        }
+    }
+
+    function openModal() {
+        if (gameCompleted) {
+            modalFeedback.className = 'feedback complete';
+            modalFeedback.textContent = '🏆 已通关，感谢你为这座城市带来正义。';
+            renderQuiz();
+        } else {
+            modalFeedback.className = 'feedback';
+            modalFeedback.textContent = '';
+            renderQuiz();
+        }
+        modalOverlay.classList.add('active');
+    }
+
+    function closeModal() {
+        modalOverlay.classList.remove('active');
+    }
+
+    // ==================================================================
+    //  重置
+    // ==================================================================
+    function resetGame() {
+        if (confirm('重置将清空所有搜索记录，确定吗？')) {
+            historyEntries = [];
+            gameCompleted = false;
+            searchInput.disabled = false;
+            searchBtn.disabled = false;
+            decryptBtn.disabled = false;
+            renderHistory();
+            modalFeedback.className = 'feedback';
+            modalFeedback.textContent = '';
+            closeModal();
+            searchInput.focus();
+        }
+    }
+
+    // ==================================================================
+    //  事件绑定
+    // ==================================================================
+    searchBtn.addEventListener('click', function() {
+        performSearch(searchInput.value);
+    });
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearch(searchInput.value);
+        }
+    });
+    resetBtn.addEventListener('click', resetGame);
+    decryptBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    submitQuizBtn.addEventListener('click', submitQuiz);
+    modalOverlay.addEventListener('click', function(e) {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    window.addEventListener('load', function() {
+        renderHistory();   // 显示引言
+        searchInput.focus();
+    });
+</script>
+</body>
+</html>
